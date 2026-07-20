@@ -1,700 +1,941 @@
 import React, { useState } from 'react';
-import { Heart, Calendar, Camera, Sparkles, Trophy, MapPin, Brain, Zap, Coffee, ArrowRight, ArrowLeft, Upload, X, Plus, Minus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Upload, X, Sparkles } from 'lucide-react';
 
-const YearlyReviewGenerator = () => {
-  const [step, setStep] = useState('form'); // 'form' or 'presentation'
+const YearlyReviewApp = () => {
+  const [currentStep, setCurrentStep] = useState(0);
+  const [answers, setAnswers] = useState({});
+  const [showPresentation, setShowPresentation] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [formData, setFormData] = useState({
-    name: '',
-    year: '2024',
-    romance: {
-      romanticDates: 0,
-      breakups: 0,
-      relationships: 0,
-      presentsFromObsessedMen: 0
-    },
-    lifeEvents: [],
-    trips: [],
-    hobbies: [],
-    realizations: [],
-    counts: [],
-    mentalBreakdowns: 0,
-    hotOutfits: 0,
-    photos: []
-  });
 
-  const [newLifeEvent, setNewLifeEvent] = useState('');
-  const [newTrip, setNewTrip] = useState({ month: '', destination: '' });
-  const [newHobby, setNewHobby] = useState('');
-  const [newRealization, setNewRealization] = useState('');
-  const [newCount, setNewCount] = useState({ activity: '', count: 0 });
-
-  const gradients = [
-    'bg-gradient-to-br from-pink-500 via-purple-500 to-indigo-600',
-    'bg-gradient-to-br from-yellow-400 via-orange-500 to-pink-500',
-    'bg-gradient-to-br from-teal-400 via-blue-500 to-purple-600',
-    'bg-gradient-to-br from-green-400 via-emerald-500 to-teal-600',
-    'bg-gradient-to-br from-rose-400 via-pink-500 to-purple-600',
-    'bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500',
-    'bg-gradient-to-br from-cyan-400 via-blue-500 to-indigo-600',
-    'bg-gradient-to-br from-red-400 via-pink-500 to-orange-500',
-    'bg-gradient-to-br from-violet-500 via-purple-600 to-pink-600'
+  const lifeEvents = [
+    'Started a new job', 'Got an apartment', 'Got engaged', 'Got married',
+    'Had a baby', 'Got a psychologist', 'Got a pet', 'Started a company',
+    'Quit smoking', 'Quit drinking', 'Got a car', 'Got a driving license',
+    'Graduated university', 'Started a side hustle', 'Completed a course', 'Repaid a loan'
   ];
 
-  const months = ['January', 'February', 'March', 'April', 'May', 'June', 
-                 'July', 'August', 'September', 'October', 'November', 'December'];
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
 
-  const updateFormData = (section, key, value) => {
-    if (section) {
-      setFormData(prev => ({
-        ...prev,
-        [section]: {
-          ...prev[section],
-          [key]: value
-        }
-      }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        [key]: value
-      }));
-    }
-  };
+  const questions = [
+    { id: 'dates', type: 'number', question: 'How many dates did you go on?', category: 'Romance', max: 100 },
+    { id: 'breakups', type: 'number', question: 'How many breakups did you have?', category: 'Romance', max: 100 },
+    { id: 'relationships', type: 'number', question: 'How many relationships did you have?', category: 'Romance', max: 100 },
+    { id: 'funThings', type: 'text-photo', question: 'Fun things you did in a relationship?', category: 'Romance' },
+    { id: 'worstThings', type: 'text-photo', question: 'Worst things you did in a relationship?', category: 'Romance' },
+    { id: 'datingStory', type: 'text-photo', question: '🚩 Craziest dating story time 🚩', category: 'Romance', redFlag: true },
+    { id: 'lifeEvents', type: 'multi-select', question: 'What major life events happened?', category: 'Life Events', options: lifeEvents, suggestion: 'Select as many as you like' },
+    { id: 'lifeEventsDetails', type: 'life-events-details', question: 'Tell us more about your life events', category: 'Life Events' },
+    { id: 'trips', type: 'monthly-trips', question: 'Where did you travel to?', category: 'Trips' },
+    { id: 'hobbies', type: 'text', question: 'Hobbies started this year:', category: 'Hobbies' },
+    { id: 'yearHighlight', type: 'text-photo', question: 'What do you feel highlighted your year? - Something else you want to share.', category: 'Highlights' },
+    { id: 'partying', type: 'number', question: 'Went partying 🎉', category: 'Stats', max: 100 },
+    { id: 'drunk', type: 'number', question: 'Got drunk 🍷', category: 'Stats', max: 100 },
+    { id: 'books', type: 'number-text-photo', question: 'Read books 📚', category: 'Stats', max: 100, subText: 'Tell us more about what you liked/hated/favorites' },
+    { id: 'breakdowns', type: 'number', question: 'Mental breakdowns count 😭', category: 'Stats', max: 100 },
+    { id: 'hotOutfits', type: 'number-photo', question: 'Hot outfits count 🔥', category: 'Stats', max: 100 }
+  ];
 
-  const addToArray = (arrayKey, item) => {
-    if (item && item.trim()) {
-      setFormData(prev => ({
-        ...prev,
-        [arrayKey]: [...prev[arrayKey], item]
-      }));
-    }
-  };
+  const handleFileUpload = (questionId, files, monthIndex = null) => {
+    const fileArray = Array.from(files);
+    const readers = fileArray.map(file => {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.readAsDataURL(file);
+      });
+    });
 
-  const removeFromArray = (arrayKey, index) => {
-    setFormData(prev => ({
-      ...prev,
-      [arrayKey]: prev[arrayKey].filter((_, i) => i !== index)
-    }));
-  };
-
-  const handlePhotoUpload = (event) => {
-    const files = Array.from(event.target.files);
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setFormData(prev => ({
+    Promise.all(readers).then(images => {
+      if (monthIndex !== null) {
+        setAnswers(prev => ({
           ...prev,
-          photos: [...prev.photos, {
-            id: Date.now() + Math.random(),
-            src: e.target.result,
-            name: file.name
-          }]
+          [questionId]: {
+            ...prev[questionId],
+            months: {
+              ...prev[questionId]?.months,
+              [monthIndex]: {
+                ...prev[questionId]?.months?.[monthIndex],
+                photos: [...(prev[questionId]?.months?.[monthIndex]?.photos || []), ...images]
+              }
+            }
+          }
         }));
-      };
-      reader.readAsDataURL(file);
+      } else {
+        setAnswers(prev => ({
+          ...prev,
+          [questionId]: {
+            ...prev[questionId],
+            photos: [...(prev[questionId]?.photos || []), ...images]
+          }
+        }));
+      }
     });
   };
 
-  const removePhoto = (photoId) => {
-    setFormData(prev => ({
-      ...prev,
-      photos: prev.photos.filter(photo => photo.id !== photoId)
-    }));
+  const removePhoto = (questionId, photoIndex, monthIndex = null) => {
+    if (monthIndex !== null) {
+      setAnswers(prev => ({
+        ...prev,
+        [questionId]: {
+          ...prev[questionId],
+          months: {
+            ...prev[questionId]?.months,
+            [monthIndex]: {
+              ...prev[questionId]?.months?.[monthIndex],
+              photos: prev[questionId]?.months?.[monthIndex]?.photos.filter((_, i) => i !== photoIndex)
+            }
+          }
+        }
+      }));
+    } else {
+      setAnswers(prev => ({
+        ...prev,
+        [questionId]: {
+          ...prev[questionId],
+          photos: prev[questionId]?.photos.filter((_, i) => i !== photoIndex)
+        }
+      }));
+    }
   };
 
-  const generatePresentation = () => {
-    setStep('presentation');
-    setCurrentSlide(0);
+  const updateAnswer = (questionId, value, field = 'value', monthIndex = null) => {
+    if (monthIndex !== null) {
+      setAnswers(prev => ({
+        ...prev,
+        [questionId]: {
+          ...prev[questionId],
+          months: {
+            ...prev[questionId]?.months,
+            [monthIndex]: {
+              ...prev[questionId]?.months?.[monthIndex],
+              [field]: value
+            }
+          }
+        }
+      }));
+    } else {
+      setAnswers(prev => ({
+        ...prev,
+        [questionId]: {
+          ...prev[questionId],
+          [field]: value
+        }
+      }));
+    }
+  };
+
+  const toggleLifeEvent = (event) => {
+    const current = answers.lifeEvents?.selected || [];
+    const updated = current.includes(event)
+      ? current.filter(e => e !== event)
+      : [...current, event];
+    updateAnswer('lifeEvents', updated, 'selected');
   };
 
   const generateSlides = () => {
     const slides = [];
-    let gradientIndex = 0;
-    const getGradient = () => gradients[gradientIndex++ % gradients.length];
-
+    
     // Title slide
     slides.push({
-      id: 'title',
       type: 'title',
-      title: `${formData.name}'s ${formData.year} Year in Review`,
-      subtitle: 'A Year of Growth, Adventures & Chaos ✨',
-      background: getGradient(),
-      icon: Heart
+      title: '✨ My Year in Review ✨',
+      subtitle: 'Buckle up, it\'s been a RIDE 🎢',
+      gradient: 'from-pink-400 via-purple-400 to-indigo-400'
     });
 
-    // Romance stats
-    if (Object.values(formData.romance).some(val => val > 0)) {
+    // Romance section
+    if (answers.dates?.value || answers.breakups?.value) {
+      const dateCount = parseInt(answers.dates?.value || 0);
+      const breakupCount = parseInt(answers.breakups?.value || 0);
+      const relCount = parseInt(answers.relationships?.value || 0);
+      
+      let commentary = '';
+      if (dateCount > 30) commentary = 'Girl what?? 😳';
+      
+      if (relCount > 1 && breakupCount > 1) {
+        commentary += commentary ? ' ...Too hot to handle. 🔥' : '...Too hot to handle. 🔥';
+      }
+      
       slides.push({
-        id: 'romance',
-        type: 'stats',
-        title: '💕 Romance Report',
+        type: 'stat',
+        title: '💕 Romance Stats',
         stats: [
-          { label: 'Romantic dates', value: formData.romance.romanticDates, emoji: '🥰' },
-          { label: 'Breakups survived', value: formData.romance.breakups, emoji: '💔' },
-          { label: 'Relationships', value: formData.romance.relationships, emoji: '👫' },
-          { label: 'Presents from obsessed men', value: formData.romance.presentsFromObsessedMen, emoji: '🎁' }
-        ].filter(stat => stat.value > 0),
-        background: getGradient()
+          { label: 'Dates', value: answers.dates?.value || 0 },
+          { label: 'Breakups', value: answers.breakups?.value || 0 }
+        ],
+        commentary: commentary,
+        gradient: 'from-rose-400 via-pink-400 to-red-400'
+      });
+    }
+
+    if (answers.relationships?.value) {
+      const relCount = parseInt(answers.relationships?.value);
+      let subtitle = '';
+      if (relCount === 0) subtitle = 'Single & Thriving Era 👑';
+      else if (relCount === 1) subtitle = 'Committed Queen 💍';
+      else if (relCount > 3) subtitle = 'The Heart Wants What It Wants 💫';
+      else subtitle = 'Love is a Journey 💕';
+      
+      slides.push({
+        type: 'stat-single',
+        title: '💑 Relationships',
+        value: answers.relationships?.value,
+        subtitle: subtitle,
+        gradient: 'from-pink-400 via-rose-400 to-purple-400'
+      });
+    }
+
+    if (answers.funThings?.value) {
+      slides.push({
+        type: 'text-photo',
+        title: '🎉 Fun Relationship Moments',
+        text: answers.funThings?.value,
+        photos: answers.funThings?.photos || [],
+        gradient: 'from-yellow-400 via-orange-400 to-pink-400'
+      });
+    }
+
+    if (answers.worstThings?.value) {
+      slides.push({
+        type: 'text-photo',
+        title: '😬 Lessons Learned',
+        text: answers.worstThings?.value,
+        photos: answers.worstThings?.photos || [],
+        gradient: 'from-purple-400 via-indigo-400 to-blue-400'
+      });
+    }
+
+    if (answers.datingStory?.value) {
+      slides.push({
+        type: 'text-photo',
+        title: '🚩 Craziest Dating Story',
+        text: answers.datingStory?.value,
+        photos: answers.datingStory?.photos || [],
+        gradient: 'from-red-500 via-red-400 to-orange-400',
+        redFlag: true
       });
     }
 
     // Life events
-    if (formData.lifeEvents.length > 0) {
-      slides.push({
-        id: 'life-events',
-        type: 'list',
-        title: '🌟 Major Life Events',
-        items: formData.lifeEvents,
-        background: getGradient(),
-        icon: Zap
+    if (answers.lifeEvents?.selected?.length > 0 || answers.lifeEvents?.other) {
+      const allEvents = [...(answers.lifeEvents?.selected || []), answers.lifeEvents?.other].filter(Boolean);
+      
+      allEvents.forEach(event => {
+        const hasDetails = answers.lifeEventsDetails?.details?.[event];
+        const hasPhotos = answers.lifeEventsDetails?.photos?.[event]?.length > 0;
+        
+        if (hasDetails || hasPhotos) {
+          slides.push({
+            type: 'text-photo',
+            title: `🌟 ${event}`,
+            text: hasDetails || '',
+            photos: answers.lifeEventsDetails?.photos?.[event] || [],
+            gradient: 'from-cyan-400 via-blue-400 to-purple-400'
+          });
+        } else {
+          // Just show the event name if no details
+          if (!slides.find(s => s.type === 'list' && s.title === '🌟 Life Events')) {
+            slides.push({
+              type: 'list',
+              title: '🌟 Life Events',
+              items: [],
+              gradient: 'from-cyan-400 via-blue-400 to-purple-400'
+            });
+          }
+          const lifeEventsSlide = slides.find(s => s.type === 'list' && s.title === '🌟 Life Events');
+          lifeEventsSlide.items.push(event);
+        }
       });
     }
 
     // Trips
-    if (formData.trips.length > 0) {
-      slides.push({
-        id: 'trips',
-        type: 'timeline',
-        title: '✈️ Adventures This Year',
-        trips: formData.trips,
-        background: getGradient(),
-        icon: MapPin
+    if (answers.trips?.months) {
+      Object.entries(answers.trips.months).forEach(([monthIdx, data]) => {
+        if (data.location || data.photos?.length > 0) {
+          slides.push({
+            type: 'text-photo',
+            title: `✈️ ${months[monthIdx]} Adventures`,
+            text: data.location || '',
+            photos: data.photos || [],
+            gradient: 'from-teal-400 via-cyan-400 to-blue-400'
+          });
+        }
       });
-    }
-
-    // Photo slides - create multiple slides if many photos
-    if (formData.photos.length > 0) {
-      const photosPerSlide = 4;
-      const photoSlides = Math.ceil(formData.photos.length / photosPerSlide);
-      
-      for (let i = 0; i < photoSlides; i++) {
-        const startIndex = i * photosPerSlide;
-        const slidePhotos = formData.photos.slice(startIndex, startIndex + photosPerSlide);
-        
-        slides.push({
-          id: `photos-${i}`,
-          type: 'photos',
-          title: i === 0 ? '📸 Memory Lane' : `📸 More Memories (${i + 1})`,
-          photos: slidePhotos,
-          background: getGradient()
-        });
-      }
     }
 
     // Hobbies
-    if (formData.hobbies.length > 0) {
+    if (answers.hobbies?.value) {
       slides.push({
-        id: 'hobbies',
-        type: 'list',
-        title: '🎨 New Hobbies Unlocked',
-        items: formData.hobbies,
-        background: getGradient(),
-        icon: Sparkles
+        type: 'text',
+        title: '🎨 New Hobbies',
+        text: answers.hobbies?.value,
+        gradient: 'from-green-400 via-emerald-400 to-teal-400'
       });
     }
 
-    // Realizations
-    if (formData.realizations.length > 0) {
+    // Year highlight
+    if (answers.yearHighlight?.value || answers.yearHighlight?.photos?.length > 0) {
       slides.push({
-        id: 'realizations',
-        type: 'quotes',
-        title: '💭 Deep Life Realizations',
-        quotes: formData.realizations,
-        background: getGradient(),
-        icon: Brain
+        type: 'text-photo',
+        title: '⭐ Year Highlight',
+        text: answers.yearHighlight?.value || '',
+        photos: answers.yearHighlight?.photos || [],
+        gradient: 'from-amber-400 via-yellow-400 to-orange-400'
       });
     }
 
-    // Fun counts
-    const allCounts = [
-      ...formData.counts,
-      ...(formData.mentalBreakdowns > 0 ? [{ activity: 'Mental breakdowns', count: formData.mentalBreakdowns }] : []),
-      ...(formData.hotOutfits > 0 ? [{ activity: 'Hot outfits served', count: formData.hotOutfits }] : [])
-    ];
+    // Stats section
+    const stats = [];
+    if (answers.partying?.value) {
+      const count = parseInt(answers.partying?.value);
+      let comment = count > 50 ? '(Party animal! 🦁)' : count > 20 ? '(Social butterfly 🦋)' : '(Casual vibes ✨)';
+      stats.push({ label: 'Party Nights', value: answers.partying.value, emoji: '🎊', comment });
+    }
+    if (answers.drunk?.value) {
+      const count = parseInt(answers.drunk?.value);
+      let comment = count > 30 ? '(No regrets. 🔥)' : count > 10 ? '(Tipsy queen 👑)' : '(Responsible icon 🌟)';
+      stats.push({ label: 'Got Drunk', value: answers.drunk.value, emoji: '🍷', comment });
+    }
+    if (answers.books?.value) {
+      const count = parseInt(answers.books?.value);
+      let comment = count > 30 ? '(Intellectual queen! 👑)' : count > 10 ? '(Bookworm era 📖)' : '(At least you tried! 💫)';
+      stats.push({ label: 'Books Read', value: answers.books.value, emoji: '📚', comment });
+    }
+    if (answers.breakdowns?.value) {
+      const count = parseInt(answers.breakdowns?.value);
+      let comment = count > 20 ? '(But we\'re stronger now! 💪)' : count > 5 ? '(Growth hurts 🌱)' : '(Queen of stability! 👑)';
+      stats.push({ label: 'Mental Breakdowns', value: answers.breakdowns.value, emoji: '😭', comment });
+    }
+    if (answers.hotOutfits?.value) {
+      const count = parseInt(answers.hotOutfits?.value);
+      let comment = count > 50 ? '(SERVE AFTER SERVE! 🔥)' : count > 20 ? '(Fashion icon! 💅)' : '(Quality > Quantity 👗)';
+      stats.push({ label: 'Hot Outfits', value: answers.hotOutfits.value, emoji: '🔥', comment });
+    }
 
-    if (allCounts.length > 0) {
+    if (stats.length > 0) {
       slides.push({
-        id: 'counts',
-        type: 'stats',
-        title: '📊 Year by the Numbers',
-        stats: allCounts.map(item => ({
-          label: item.activity,
-          value: item.count,
-          emoji: getCountEmoji(item.activity)
-        })),
-        background: getGradient()
+        type: 'stats-grid',
+        title: '📊 Year by Numbers',
+        stats: stats,
+        gradient: 'from-purple-400 via-pink-400 to-rose-400'
       });
     }
 
-    // Closing slide
+    if (answers.books?.text || answers.books?.photos?.length > 0) {
+      slides.push({
+        type: 'text-photo',
+        title: '📖 Book Highlights',
+        text: answers.books?.text || '',
+        photos: answers.books?.photos || [],
+        gradient: 'from-indigo-400 via-purple-400 to-pink-400'
+      });
+    }
+
+    if (answers.hotOutfits?.photos?.length > 0) {
+      slides.push({
+        type: 'photo-grid',
+        title: '🔥 Hot Outfit Collection',
+        photos: answers.hotOutfits.photos,
+        gradient: 'from-rose-400 via-red-400 to-pink-400'
+      });
+    }
+
+    // End slide
     slides.push({
-      id: 'closing',
-      type: 'title',
-      title: 'Here\'s to Another Year!',
-      subtitle: 'Cheers to more adventures, growth, and friendship 🥂',
-      background: getGradient(),
-      icon: Trophy
+      type: 'end',
+      title: 'Here\'s to Another Year of Chaos! 🥂',
+      subtitle: 'Same time next year? 💅✨',
+      gradient: 'from-purple-400 via-pink-400 to-rose-400'
     });
 
     return slides;
   };
 
-  const getCountEmoji = (activity) => {
-    const lower = activity.toLowerCase();
-    if (lower.includes('drunk') || lower.includes('drink')) return '🍻';
-    if (lower.includes('breakdown') || lower.includes('mental')) return '😭';
-    if (lower.includes('outfit') || lower.includes('hot')) return '🔥';
-    if (lower.includes('coffee')) return '☕';
-    if (lower.includes('workout') || lower.includes('gym')) return '💪';
-    if (lower.includes('cry') || lower.includes('tear')) return '😢';
-    if (lower.includes('laugh')) return '😂';
-    return '✨';
-  };
-
-  const renderSlide = (slide) => {
-    switch (slide.type) {
-      case 'title':
-        return (
-          <div className="text-center space-y-8">
-            <div className="space-y-4">
-              <h1 className="text-6xl font-bold text-white drop-shadow-lg">
-                {slide.title}
-              </h1>
-              <p className="text-2xl text-white/90 drop-shadow">
-                {slide.subtitle}
-              </p>
-            </div>
-            <div className="flex justify-center">
-              {slide.icon && <slide.icon className="w-16 h-16 text-white/80" />}
-            </div>
-          </div>
-        );
-
-      case 'stats':
-        return (
-          <div className="space-y-8">
-            <h2 className="text-5xl font-bold text-white text-center drop-shadow-lg">
-              {slide.title}
-            </h2>
-            <div className="grid grid-cols-2 gap-6">
-              {slide.stats.map((stat, index) => (
-                <div key={index} className="bg-white/20 backdrop-blur-sm rounded-2xl p-6 text-center">
-                  <div className="text-4xl mb-2">{stat.emoji}</div>
-                  <div className="text-4xl font-bold text-white mb-2">{stat.value}</div>
-                  <div className="text-lg text-white/90">{stat.label}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-
-      case 'list':
-        return (
-          <div className="space-y-8">
-            <h2 className="text-5xl font-bold text-white text-center drop-shadow-lg">
-              {slide.title}
-            </h2>
-            <div className="space-y-4">
-              {slide.items.map((item, index) => (
-                <div key={index} className="flex items-center space-x-4 bg-white/20 backdrop-blur-sm rounded-xl p-4">
-                  <div className="w-3 h-3 bg-white rounded-full"></div>
-                  <span className="text-2xl text-white">{item}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-
-      case 'timeline':
-        return (
-          <div className="space-y-8">
-            <h2 className="text-5xl font-bold text-white text-center drop-shadow-lg">
-              {slide.title}
-            </h2>
-            <div className="space-y-4">
-              {slide.trips.map((trip, index) => (
-                <div key={index} className="bg-white/20 backdrop-blur-sm rounded-xl p-4 flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <MapPin className="w-6 h-6 text-white" />
-                    <span className="text-2xl text-white font-semibold">{trip.destination}</span>
-                  </div>
-                  <span className="text-lg text-white/80">{trip.month}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-
-      case 'photos':
-        return (
-          <div className="space-y-8">
-            <h2 className="text-5xl font-bold text-white text-center drop-shadow-lg">
-              {slide.title}
-            </h2>
-            <div className={`grid ${slide.photos.length === 1 ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
-              {slide.photos.map((photo, index) => (
-                <div key={photo.id} className="bg-white/20 backdrop-blur-sm rounded-xl p-3">
-                  <img 
-                    src={photo.src} 
-                    alt={photo.name}
-                    className="w-full h-48 object-cover rounded-lg"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-
-      case 'quotes':
-        return (
-          <div className="space-y-8">
-            <h2 className="text-5xl font-bold text-white text-center drop-shadow-lg">
-              {slide.title}
-            </h2>
-            <div className="space-y-6">
-              {slide.quotes.map((quote, index) => (
-                <div key={index} className="bg-white/20 backdrop-blur-sm rounded-xl p-6 text-center">
-                  <span className="text-2xl text-white italic">"{quote}"</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-
-      default:
-        return <div>Slide content</div>;
-    }
-  };
-
-  if (step === 'presentation') {
-    const slides = generateSlides();
-    const currentSlideData = slides[currentSlide];
+  const renderQuestion = () => {
+    const question = questions[currentStep];
 
     return (
-      <div className="min-h-screen bg-gray-100">
-        <div className={`min-h-screen ${currentSlideData.background} p-12 flex flex-col justify-center relative`}>
-          {renderSlide(currentSlideData)}
-          
-          {/* Navigation */}
-          <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex items-center space-x-4">
-            <button
-              onClick={() => setCurrentSlide(Math.max(0, currentSlide - 1))}
-              disabled={currentSlide === 0}
-              className="bg-white/20 backdrop-blur-sm text-white p-3 rounded-full disabled:opacity-50 hover:bg-white/30 transition-colors"
-            >
-              <ArrowLeft className="w-6 h-6" />
-            </button>
-            
-            <span className="text-white bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full">
-              {currentSlide + 1} of {slides.length}
-            </span>
-            
-            <button
-              onClick={() => setCurrentSlide(Math.min(slides.length - 1, currentSlide + 1))}
-              disabled={currentSlide === slides.length - 1}
-              className="bg-white/20 backdrop-blur-sm text-white p-3 rounded-full disabled:opacity-50 hover:bg-white/30 transition-colors"
-            >
-              <ArrowRight className="w-6 h-6" />
-            </button>
+      <div className="min-h-screen bg-gradient-to-br from-purple-100 via-pink-100 to-blue-100 flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-2xl w-full">
+          <div className="mb-6">
+            <div className="flex justify-between items-center mb-4">
+              <span className="text-sm font-semibold text-purple-600">{question.category}</span>
+              <span className="text-sm text-gray-500">Question {currentStep + 1} of {questions.length}</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${((currentStep + 1) / questions.length) * 100}%` }}
+              />
+            </div>
           </div>
 
-          {/* Back to form button */}
-          <button
-            onClick={() => setStep('form')}
-            className="absolute top-6 left-6 bg-white/20 backdrop-blur-sm text-white px-4 py-2 rounded-lg hover:bg-white/30 transition-colors"
-          >
-            ← Edit Details
-          </button>
-        </div>
-      </div>
-    );
-  }
+          <h2 className="text-3xl font-bold text-gray-800 mb-6">{question.question}</h2>
+          {question.suggestion && (
+            <p className="text-gray-600 mb-4 italic">{question.suggestion}</p>
+          )}
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-600 via-pink-600 to-orange-500 p-6">
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 shadow-2xl">
-          <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
-              Girlfriend Yearly Review Generator
-            </h1>
-            <p className="text-gray-600">Answer some questions and get a beautiful presentation automatically!</p>
-          </div>
+          <div className="space-y-4">
+            {question.type === 'number' && (
+              <input
+                type="number"
+                min="0"
+                max={question.max}
+                value={answers[question.id]?.value || ''}
+                onChange={(e) => updateAnswer(question.id, e.target.value)}
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-purple-500 focus:outline-none text-lg"
+                placeholder="Enter a number"
+              />
+            )}
 
-          <div className="space-y-8">
-            {/* Basic Info */}
-            <div className="bg-purple-50 rounded-xl p-6">
-              <h3 className="text-xl font-semibold text-purple-800 mb-4 flex items-center">
-                <Heart className="w-5 h-5 mr-2" />
-                Basic Info
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
+            {(question.type === 'text' || question.type === 'text-photo') && (
+              <textarea
+                value={answers[question.id]?.value || ''}
+                onChange={(e) => updateAnswer(question.id, e.target.value)}
+                maxLength={500}
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-purple-500 focus:outline-none text-lg resize-none"
+                rows="4"
+                placeholder="Type your answer..."
+              />
+            )}
+
+            {(question.type === 'number-photo') && (
+              <>
                 <input
-                  type="text"
-                  placeholder="Your name"
-                  value={formData.name}
-                  onChange={(e) => updateFormData(null, 'name', e.target.value)}
-                  className="p-3 border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  type="number"
+                  min="0"
+                  max={question.max}
+                  value={answers[question.id]?.value || ''}
+                  onChange={(e) => updateAnswer(question.id, e.target.value)}
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-purple-500 focus:outline-none text-lg"
+                  placeholder="Enter a number"
                 />
-                <input
-                  type="text"
-                  placeholder="Year (e.g., 2024)"
-                  value={formData.year}
-                  onChange={(e) => updateFormData(null, 'year', e.target.value)}
-                  className="p-3 border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                />
-              </div>
-            </div>
-
-            {/* Romance */}
-            <div className="bg-pink-50 rounded-xl p-6">
-              <h3 className="text-xl font-semibold text-pink-800 mb-4 flex items-center">
-                <Heart className="w-5 h-5 mr-2" />
-                Romance Report
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-pink-700 mb-1">Romantic dates</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formData.romance.romanticDates}
-                    onChange={(e) => updateFormData('romance', 'romanticDates', parseInt(e.target.value) || 0)}
-                    className="w-full p-3 border border-pink-200 rounded-lg focus:ring-2 focus:ring-pink-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-pink-700 mb-1">Breakups</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formData.romance.breakups}
-                    onChange={(e) => updateFormData('romance', 'breakups', parseInt(e.target.value) || 0)}
-                    className="w-full p-3 border border-pink-200 rounded-lg focus:ring-2 focus:ring-pink-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-pink-700 mb-1">Relationships</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formData.romance.relationships}
-                    onChange={(e) => updateFormData('romance', 'relationships', parseInt(e.target.value) || 0)}
-                    className="w-full p-3 border border-pink-200 rounded-lg focus:ring-2 focus:ring-pink-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-pink-700 mb-1">Presents from obsessed men</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formData.romance.presentsFromObsessedMen}
-                    onChange={(e) => updateFormData('romance', 'presentsFromObsessedMen', parseInt(e.target.value) || 0)}
-                    className="w-full p-3 border border-pink-200 rounded-lg focus:ring-2 focus:ring-pink-500"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Life Events */}
-            <div className="bg-blue-50 rounded-xl p-6">
-              <h3 className="text-xl font-semibold text-blue-800 mb-4 flex items-center">
-                <Zap className="w-5 h-5 mr-2" />
-                Major Life Events
-              </h3>
-              <div className="space-y-3">
-                {formData.lifeEvents.map((event, index) => (
-                  <div key={index} className="flex items-center space-x-2">
-                    <span className="flex-1 p-2 bg-blue-100 rounded">{event}</span>
-                    <button
-                      onClick={() => removeFromArray('lifeEvents', index)}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-                ))}
-                <div className="flex space-x-2">
-                  <input
-                    type="text"
-                    placeholder="e.g., Started new job, got an apartment, got a pet..."
-                    value={newLifeEvent}
-                    onChange={(e) => setNewLifeEvent(e.target.value)}
-                    className="flex-1 p-3 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  />
-                  <button
-                    onClick={() => {
-                      addToArray('lifeEvents', newLifeEvent);
-                      setNewLifeEvent('');
-                    }}
-                    className="px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-                  >
-                    <Plus className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Trips */}
-            <div className="bg-green-50 rounded-xl p-6">
-              <h3 className="text-xl font-semibold text-green-800 mb-4 flex items-center">
-                <MapPin className="w-5 h-5 mr-2" />
-                Trips This Year
-              </h3>
-              <div className="space-y-3">
-                {formData.trips.map((trip, index) => (
-                  <div key={index} className="flex items-center space-x-2">
-                    <span className="flex-1 p-2 bg-green-100 rounded">
-                      {trip.destination} - {trip.month}
-                    </span>
-                    <button
-                      onClick={() => removeFromArray('trips', index)}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-                ))}
-                <div className="flex space-x-2">
-                  <select
-                    value={newTrip.month}
-                    onChange={(e) => setNewTrip({...newTrip, month: e.target.value})}
-                    className="p-3 border border-green-200 rounded-lg focus:ring-2 focus:ring-green-500"
-                  >
-                    <option value="">Month</option>
-                    {months.map(month => (
-                      <option key={month} value={month}>{month}</option>
-                    ))}
-                  </select>
-                  <input
-                    type="text"
-                    placeholder="Destination"
-                    value={newTrip.destination}
-                    onChange={(e) => setNewTrip({...newTrip, destination: e.target.value})}
-                    className="flex-1 p-3 border border-green-200 rounded-lg focus:ring-2 focus:ring-green-500"
-                  />
-                  <button
-                    onClick={() => {
-                      if (newTrip.month && newTrip.destination) {
-                        addToArray('trips', newTrip);
-                        setNewTrip({ month: '', destination: '' });
-                      }
-                    }}
-                    className="px-4 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600"
-                  >
-                    <Plus className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Photos */}
-            <div className="bg-yellow-50 rounded-xl p-6">
-              <h3 className="text-xl font-semibold text-yellow-800 mb-4 flex items-center">
-                <Camera className="w-5 h-5 mr-2" />
-                Photos & Videos
-              </h3>
-              <div className="space-y-4">
-                <div className="grid grid-cols-4 gap-3">
-                  {formData.photos.map((photo) => (
-                    <div key={photo.id} className="relative group">
-                      <img 
-                        src={photo.src} 
-                        alt={photo.name}
-                        className="w-full h-20 object-cover rounded-lg"
-                      />
-                      <button
-                        onClick={() => removePhoto(photo.id)}
-                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <label className="flex items-center justify-center p-4 border-2 border-dashed border-yellow-300 rounded-lg cursor-pointer hover:bg-yellow-100 transition-colors">
-                  <Upload className="w-5 h-5 mr-2 text-yellow-600" />
-                  <span className="text-yellow-700">Upload photos</span>
+                <label className="flex items-center justify-center w-full px-4 py-3 border-2 border-dashed border-purple-300 rounded-xl cursor-pointer hover:border-purple-500 transition-colors">
+                  <Upload className="mr-2" size={20} />
+                  <span>Upload Photos</span>
                   <input
                     type="file"
                     multiple
-                    accept="image/*"
-                    onChange={handlePhotoUpload}
+                    accept=".jpg,.jpeg,.png"
+                    onChange={(e) => handleFileUpload(question.id, e.target.files)}
                     className="hidden"
                   />
                 </label>
-              </div>
-            </div>
-
-            {/* Hobbies */}
-            <div className="bg-purple-50 rounded-xl p-6">
-              <h3 className="text-xl font-semibold text-purple-800 mb-4 flex items-center">
-                <Sparkles className="w-5 h-5 mr-2" />
-                New Hobbies Started
-              </h3>
-              <div className="space-y-3">
-                {formData.hobbies.map((hobby, index) => (
-                  <div key={index} className="flex items-center space-x-2">
-                    <span className="flex-1 p-2 bg-purple-100 rounded">{hobby}</span>
-                    <button
-                      onClick={() => removeFromArray('hobbies', index)}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
+                {answers[question.id]?.photos?.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2 mt-4">
+                    {answers[question.id].photos.map((photo, idx) => (
+                      <div key={idx} className="relative group">
+                        <img src={photo} alt="" className="w-full h-24 object-cover rounded-lg" />
+                        <button
+                          onClick={() => removePhoto(question.id, idx)}
+                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ))}
                   </div>
-                ))}
-                <div className="flex space-x-2">
+                )}
+              </>
+            )}
+
+            {(question.type === 'text-photo') && (
+              <div>
+                <textarea
+                  value={answers[question.id]?.value || ''}
+                  onChange={(e) => updateAnswer(question.id, e.target.value)}
+                  maxLength={500}
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-purple-500 focus:outline-none text-lg resize-none mb-4"
+                  rows="4"
+                  placeholder="Type your answer..."
+                />
+                <label className="flex items-center justify-center w-full px-4 py-3 border-2 border-dashed border-purple-300 rounded-xl cursor-pointer hover:border-purple-500 transition-colors">
+                  <Upload className="mr-2" size={20} />
+                  <span>Upload Photos</span>
                   <input
-                    type="text"
-                    placeholder="e.g., Photography, Yoga, Cooking..."
-                    value={newHobby}
-                    onChange={(e) => setNewHobby(e.target.value)}
-                    className="flex-1 p-3 border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500"
+                    type="file"
+                    multiple
+                    accept=".jpg,.jpeg,.png"
+                    onChange={(e) => handleFileUpload(question.id, e.target.files)}
+                    className="hidden"
                   />
-                  <button
-                    onClick={() => {
-                      addToArray('hobbies', newHobby);
-                      setNewHobby('');
-                    }}
-                    className="px-4 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600"
-                  >
-                    <Plus className="w-5 h-5" />
-                  </button>
+                </label>
+                {answers[question.id]?.photos?.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2 mt-4">
+                    {answers[question.id].photos.map((photo, idx) => (
+                      <div key={idx} className="relative group">
+                        <img src={photo} alt="" className="w-full h-24 object-cover rounded-lg" />
+                        <button
+                          onClick={() => removePhoto(question.id, idx)}
+                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {question.type === 'number-text-photo' && (
+              <>
+                <input
+                  type="number"
+                  min="0"
+                  max={question.max}
+                  value={answers[question.id]?.value || ''}
+                  onChange={(e) => updateAnswer(question.id, e.target.value)}
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-purple-500 focus:outline-none text-lg"
+                  placeholder="Enter a number"
+                />
+                <textarea
+                  value={answers[question.id]?.text || ''}
+                  onChange={(e) => updateAnswer(question.id, e.target.value, 'text')}
+                  maxLength={500}
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-purple-500 focus:outline-none text-lg resize-none"
+                  rows="3"
+                  placeholder={question.subText}
+                />
+                <label className="flex items-center justify-center w-full px-4 py-3 border-2 border-dashed border-purple-300 rounded-xl cursor-pointer hover:border-purple-500 transition-colors">
+                  <Upload className="mr-2" size={20} />
+                  <span>Upload Photos</span>
+                  <input
+                    type="file"
+                    multiple
+                    accept=".jpg,.jpeg,.png"
+                    onChange={(e) => handleFileUpload(question.id, e.target.files)}
+                    className="hidden"
+                  />
+                </label>
+                {answers[question.id]?.photos?.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2 mt-4">
+                    {answers[question.id].photos.map((photo, idx) => (
+                      <div key={idx} className="relative group">
+                        <img src={photo} alt="" className="w-full h-24 object-cover rounded-lg" />
+                        <button
+                          onClick={() => removePhoto(question.id, idx)}
+                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+
+            {question.type === 'multi-select' && (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  {question.options.map((option) => (
+                    <button
+                      key={option}
+                      onClick={() => toggleLifeEvent(option)}
+                      className={`px-4 py-3 rounded-xl border-2 text-left transition-all ${
+                        answers[question.id]?.selected?.includes(option)
+                          ? 'border-purple-500 bg-purple-50 text-purple-700'
+                          : 'border-gray-300 hover:border-purple-300'
+                      }`}
+                    >
+                      {option}
+                    </button>
+                  ))}
                 </div>
-              </div>
-            </div>
+                <input
+                  type="text"
+                  value={answers[question.id]?.other || ''}
+                  onChange={(e) => updateAnswer(question.id, e.target.value, 'other')}
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-purple-500 focus:outline-none text-lg"
+                  placeholder="Other (type here)"
+                />
+              </>
+            )}
 
-            {/* Deep Realizations */}
-            <div className="bg-indigo-50 rounded-xl p-6">
-              <h3 className="text-xl font-semibold text-indigo-800 mb-4 flex items-center">
-                <Brain className="w-5 h-5 mr-2" />
-                Deep Life Realizations
-              </h3>
-              <div className="space-y-3">
-                {formData.realizations.map((realization, index) => (
-                  <div key={index} className="flex items-center space-x-2">
-                    <span className="flex-1 p-2 bg-indigo-100 rounded italic">"{realization}"</span>
-                    <button
-                      onClick={() => removeFromArray('realizations', index)}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
+            {question.type === 'life-events-details' && (
+              <div className="space-y-4 max-h-96 overflow-y-auto">
+                {(() => {
+                  const selectedEvents = [
+                    ...(answers.lifeEvents?.selected || []),
+                    ...(answers.lifeEvents?.other ? [answers.lifeEvents.other] : [])
+                  ].filter(Boolean);
+
+                  if (selectedEvents.length === 0) {
+                    return <p className="text-gray-500 text-center py-8">No life events selected. You can skip this question.</p>;
+                  }
+
+                  return selectedEvents.map((event, idx) => (
+                    <div key={idx} className="border-2 border-purple-200 rounded-xl p-4 bg-purple-50/30">
+                      <h3 className="font-semibold text-lg mb-3 text-purple-700">{event}</h3>
+                      <textarea
+                        value={answers[question.id]?.details?.[event] || ''}
+                        onChange={(e) => {
+                          setAnswers(prev => ({
+                            ...prev,
+                            [question.id]: {
+                              ...prev[question.id],
+                              details: {
+                                ...prev[question.id]?.details,
+                                [event]: e.target.value
+                              }
+                            }
+                          }));
+                        }}
+                        maxLength={500}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none mb-2 resize-none"
+                        rows="2"
+                        placeholder="Tell us more... (e.g., what course? how did it happen?)"
+                      />
+                      <label className="flex items-center justify-center w-full px-3 py-2 border border-dashed border-purple-400 rounded-lg cursor-pointer hover:border-purple-600 transition-colors text-sm">
+                        <Upload className="mr-2" size={16} />
+                        <span>Add Photos</span>
+                        <input
+                          type="file"
+                          multiple
+                          accept=".jpg,.jpeg,.png"
+                          onChange={(e) => {
+                            const fileArray = Array.from(e.target.files);
+                            const readers = fileArray.map(file => {
+                              return new Promise((resolve) => {
+                                const reader = new FileReader();
+                                reader.onload = (e) => resolve(e.target.result);
+                                reader.readAsDataURL(file);
+                              });
+                            });
+
+                            Promise.all(readers).then(images => {
+                              setAnswers(prev => ({
+                                ...prev,
+                                [question.id]: {
+                                  ...prev[question.id],
+                                  photos: {
+                                    ...prev[question.id]?.photos,
+                                    [event]: [...(prev[question.id]?.photos?.[event] || []), ...images]
+                                  }
+                                }
+                              }));
+                            });
+                          }}
+                          className="hidden"
+                        />
+                      </label>
+                      {answers[question.id]?.photos?.[event]?.length > 0 && (
+                        <div className="grid grid-cols-4 gap-2 mt-2">
+                          {answers[question.id].photos[event].map((photo, photoIdx) => (
+                            <div key={photoIdx} className="relative group">
+                              <img src={photo} alt="" className="w-full h-16 object-cover rounded" />
+                              <button
+                                onClick={() => {
+                                  setAnswers(prev => ({
+                                    ...prev,
+                                    [question.id]: {
+                                      ...prev[question.id],
+                                      photos: {
+                                        ...prev[question.id]?.photos,
+                                        [event]: prev[question.id]?.photos?.[event].filter((_, i) => i !== photoIdx)
+                                      }
+                                    }
+                                  }));
+                                }}
+                                className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <X size={12} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ));
+                })()}
+              </div>
+            )}
+
+            {question.type === 'monthly-trips' && (
+              <div className="space-y-4 max-h-96 overflow-y-auto">
+                {months.map((month, idx) => (
+                  <div key={idx} className="border-2 border-gray-200 rounded-xl p-4">
+                    <h3 className="font-semibold text-lg mb-2">{month}</h3>
+                    <input
+                      type="text"
+                      value={answers[question.id]?.months?.[idx]?.location || ''}
+                      onChange={(e) => updateAnswer(question.id, e.target.value, 'location', idx)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none mb-2"
+                      placeholder="Where did you go?"
+                    />
+                    <label className="flex items-center justify-center w-full px-3 py-2 border border-dashed border-purple-300 rounded-lg cursor-pointer hover:border-purple-500 transition-colors text-sm">
+                      <Upload className="mr-2" size={16} />
+                      <span>Add Photos</span>
+                      <input
+                        type="file"
+                        multiple
+                        accept=".jpg,.jpeg,.png"
+                        onChange={(e) => handleFileUpload(question.id, e.target.files, idx)}
+                        className="hidden"
+                      />
+                    </label>
+                    {answers[question.id]?.months?.[idx]?.photos?.length > 0 && (
+                      <div className="grid grid-cols-4 gap-1 mt-2">
+                        {answers[question.id].months[idx].photos.map((photo, photoIdx) => (
+                          <div key={photoIdx} className="relative group">
+                            <img src={photo} alt="" className="w-full h-16 object-cover rounded" />
+                            <button
+                              onClick={() => removePhoto(question.id, photoIdx, idx)}
+                              className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
-                <div className="flex space-x-2">
-                  <input
-                    type="text"
-                    placeholder="e.g., Self-care isn't selfish, boundaries are healthy..."
-                    value={newRealization}
-                    onChange={(e) => setNewRealization(e.target.value)}
-                    className="flex-1 p-3 border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                  />
-                  <button
-                    onClick={() => {
-                      addToArray('realizations', newRealization);
-                      setNewRealization('');
-                    }}
-                    className="px-4 py-3 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600"
-                  
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-between mt-8">
+            <button
+              onClick={() => setCurrentStep(Math.max(0, currentStep - 1))}
+              disabled={currentStep === 0}
+              className="flex items-center px-6 py-3 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+              <ChevronLeft className="mr-1" size={20} />
+              Back
+            </button>
+
+            <button
+              onClick={() => {
+                if (currentStep < questions.length - 1) {
+                  setCurrentStep(currentStep + 1);
+                } else {
+                  setShowPresentation(true);
+                }
+              }}
+              className="flex items-center px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all"
+            >
+              {currentStep === questions.length - 1 ? (
+                <>
+                  Generate
+                  <Sparkles className="ml-1" size={20} />
+                </>
+              ) : (
+                <>
+                  Next
+                  <ChevronRight className="ml-1" size={20} />
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderSlide = (slide) => {
+    return (
+      <div className={`min-h-screen bg-gradient-to-br ${slide.gradient} flex items-center justify-center p-8 relative overflow-hidden`}>
+        {slide.redFlag && (
+          <div className="absolute inset-0 opacity-10 text-6xl">
+            {Array.from({ length: 50 }).map((_, i) => (
+              <span
+                key={i}
+                className="absolute"
+                style={{
+                  left: `${Math.random() * 100}%`,
+                  top: `${Math.random() * 100}%`,
+                  transform: `rotate(${Math.random() * 360}deg)`
+                }}
+              >
+                🚩
+              </span>
+            ))}
+          </div>
+        )}
+
+        <div className="relative z-10 max-w-4xl w-full">
+          {slide.type === 'title' && (
+            <div className="text-center">
+              <h1 className="text-7xl font-bold text-white mb-4 drop-shadow-lg">{slide.title}</h1>
+              <p className="text-3xl text-white/90 drop-shadow">{slide.subtitle}</p>
+            </div>
+          )}
+
+          {slide.type === 'stat-single' && (
+            <div className="text-center">
+              <h2 className="text-5xl font-bold text-white mb-8 drop-shadow-lg">{slide.title}</h2>
+              <div className="bg-white/20 backdrop-blur-lg rounded-3xl p-12 inline-block mb-6">
+                <div className="text-8xl font-bold text-white">{slide.value}</div>
+              </div>
+              {slide.subtitle && (
+                <p className="text-3xl text-white/90 font-semibold drop-shadow">{slide.subtitle}</p>
+              )}
+            </div>
+          )}
+
+          {slide.type === 'stat' && (
+            <div className="text-center">
+              <h2 className="text-5xl font-bold text-white mb-12 drop-shadow-lg">{slide.title}</h2>
+              <div className="grid grid-cols-2 gap-8 mb-6">
+                {slide.stats.map((stat, idx) => (
+                  <div key={idx} className="bg-white/20 backdrop-blur-lg rounded-3xl p-8">
+                    <div className="text-6xl font-bold text-white mb-2">{stat.value}</div>
+                    <div className="text-2xl text-white/90">{stat.label}</div>
+                  </div>
+                ))}
+              </div>
+              {slide.commentary && (
+                <p className="text-2xl text-white/90 font-semibold drop-shadow">{slide.commentary}</p>
+              )}
+            </div>
+          )}
+
+          {slide.type === 'text' && (
+            <div className="text-center">
+              <h2 className="text-5xl font-bold text-white mb-8 drop-shadow-lg">{slide.title}</h2>
+              <p className="text-2xl text-white/90 leading-relaxed bg-white/20 backdrop-blur-lg rounded-3xl p-8">
+                {slide.text}
+              </p>
+            </div>
+          )}
+
+          {slide.type === 'text-photo' && (
+            <div>
+              <h2 className="text-5xl font-bold text-white mb-8 text-center drop-shadow-lg">{slide.title}</h2>
+              {slide.text && (
+                <p className="text-xl text-white/90 mb-6 bg-white/20 backdrop-blur-lg rounded-2xl p-6">
+                  {slide.text}
+                </p>
+              )}
+              {slide.photos?.length > 0 && (
+                <div className={`grid gap-4 ${slide.photos.length === 1 ? 'grid-cols-1' : slide.photos.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                  {slide.photos.map((photo, idx) => (
+                    <img key={idx} src={photo} alt="" className="w-full h-64 object-cover rounded-2xl shadow-2xl" />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {slide.type === 'list' && (
+            <div>
+              <h2 className="text-5xl font-bold text-white mb-8 text-center drop-shadow-lg">{slide.title}</h2>
+              <div className="bg-white/20 backdrop-blur-lg rounded-3xl p-8">
+                <ul className="text-2xl text-white/90 space-y-4">
+                  {slide.items.map((item, idx) => (
+                    <li key={idx} className="flex items-center">
+                      <span className="mr-4">✨</span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              {slide.photos?.length > 0 && (
+                <div className="grid grid-cols-3 gap-4 mt-6">
+                  {slide.photos.map((photo, idx) => (
+                    <img key={idx} src={photo} alt="" className="w-full h-48 object-cover rounded-2xl shadow-2xl" />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {slide.type === 'stats-grid' && (
+            <div className="text-center">
+              <h2 className="text-5xl font-bold text-white mb-12 drop-shadow-lg">{slide.title}</h2>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+                {slide.stats.map((stat, idx) => (
+                  <div key={idx} className="bg-white/20 backdrop-blur-lg rounded-3xl p-6">
+                    <div className="text-4xl mb-2">{stat.emoji}</div>
+                    <div className="text-5xl font-bold text-white mb-2">{stat.value}</div>
+                    <div className="text-lg text-white/90 mb-2">{stat.label}</div>
+                    {stat.comment && (
+                      <div className="text-sm text-white/80 italic">{stat.comment}</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {slide.type === 'photo-grid' && (
+            <div>
+              <h2 className="text-5xl font-bold text-white mb-8 text-center drop-shadow-lg">{slide.title}</h2>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {slide.photos.map((photo, idx) => (
+                  <img key={idx} src={photo} alt="" className="w-full h-64 object-cover rounded-2xl shadow-2xl" />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {slide.type === 'end' && (
+            <div className="text-center">
+              <h1 className="text-6xl font-bold text-white mb-4 drop-shadow-lg">{slide.title}</h1>
+              <p className="text-3xl text-white/90 drop-shadow">{slide.subtitle}</p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  if (!showPresentation) {
+    return renderQuestion();
+  }
+
+  const slides = generateSlides();
+
+  return (
+    <div className="relative">
+      {renderSlide(slides[currentSlide])}
+      
+      <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 flex items-center gap-4 bg-black/50 backdrop-blur-lg rounded-full px-6 py-4">
+        <button
+          onClick={() => setCurrentSlide(Math.max(0, currentSlide - 1))}
+          disabled={currentSlide === 0}
+          className="text-white hover:text-pink-300 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+        >
+          <ChevronLeft size={28} />
+        </button>
+        
+        <div className="flex gap-2">
+          {slides.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => setCurrentSlide(idx)}
+              className={`h-2 rounded-full transition-all ${
+                idx === currentSlide ? 'w-8 bg-white' : 'w-2 bg-white/50'
+              }`}
+            />
+          ))}
+        </div>
+
+        <button
+          onClick={() => setCurrentSlide(Math.min(slides.length - 1, currentSlide + 1))}
+          disabled={currentSlide === slides.length - 1}
+          className="text-white hover:text-pink-300 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+        >
+          <ChevronRight size={28} />
+        </button>
+      </div>
+
+      <button
+        onClick={() => {
+          setShowPresentation(false);
+          setCurrentSlide(0);
+        }}
+        className="fixed top-8 right-8 bg-white/20 backdrop-blur-lg text-white px-6 py-3 rounded-full hover:bg-white/30 transition-all"
+      >
+        Edit Answers
+      </button>
+    </div>
+  );
+};
+
+export default YearlyReviewApp;
